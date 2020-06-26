@@ -1,0 +1,94 @@
+#+TITLE: Nginx unit flask
+#+OPTIONS: ^:nil
+#+PROPERTY: header-args:sh :session *shell nginx-unit-flask sh* :results silent raw
+#+PROPERTY: header-args:python :session *shell nginx-unit-flask python* :results silent raw
+
+** System environment
+
+- CentOS Linux release 8.1.1911 (Core)
+
+- python3-flask-0.12.2
+
+- unit-1.18.0
+
+- unit-python36-1.18.0
+
+
+** Simple flask app
+
+=/var/www/flask-app/uwsgi.py=.
+
+#+BEGIN_SRC python :tangle var/www/flask-app/wsgi.py
+from flask import Flask
+application = Flask(__name__)
+
+@application.route("/")
+def hello_world():
+    return "Hello, World!\n"
+#+END_SRC
+
+** Get current unit configuration
+
+#+BEGIN_SRC sh :results code replace :exports both
+curl --unix-socket /var/run/unit/control.sock http://localhost/config/
+#+END_SRC
+
+#+RESULTS:
+#+begin_src sh
+{
+	"listeners": {},
+	"applications": {}
+}
+#+end_src
+
+** Prepare unit configuration
+
+=config.json=.
+
+#+BEGIN_SRC js :tangle config.json
+{
+    "listeners": {
+        "*:8080": {
+            "pass": "applications/flask_app"
+        }
+    },
+
+    "applications": {
+        "flask_app": {
+            "type": "python 3",
+            "path": "/var/www/flask-app/",
+            "module": "wsgi"
+        }
+    }
+}
+#+END_SRC
+
+#+RESULTS:
+
+** Set unit config
+
+#+BEGIN_SRC sh :results replace code :exports both
+curl -X PUT --data-binary @config.json --unix-socket /var/run/unit/control.sock http://localhost/config
+#+END_SRC
+
+#+RESULTS:
+#+begin_src sh
+{
+	"success": "Reconfiguration done."
+}
+#+end_src
+
+** Test
+
+#+BEGIN_SRC sh :results replace code :exports both
+curl http://localhost:8080
+#+END_SRC
+
+#+RESULTS:
+#+begin_src sh
+Hello, World!
+#+end_src
+
+** References
+
+- https://unit.nginx.org/howto/flask/
